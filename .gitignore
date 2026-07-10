@@ -22,6 +22,7 @@
 # Arquivos de variáveis locais 
 **/*.tfvars
 **/*.tfvars.json
+.env
 
 # =======================================================================
 # 3. DOCKER & BANCO DE DADOS LOCAL
