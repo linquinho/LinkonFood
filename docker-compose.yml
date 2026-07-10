@@ -1,0 +1,124 @@
+version: '3.8'
+
+services:
+  # -------------------------
+  # 1. BANCO DE DADOS (MySQL)
+  # -------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: linkonfood_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: super_senha
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------
+  # 2. OBSERVABILIDADE (ELASTIC STACK)
+  # ----------------------------------
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+    container_name: elasticsearch_server
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:8.11.1
+    container_name: apm_server
+    ports:
+      - "8200:8200"
+    command: >
+      apm-server -e
+      -E output.elasticsearch.hosts=["elasticsearch:9200"]
+      -E apm-server.host="0.0.0.0:8200"
+      -E apm-server.rpt.enabled=false
+    depends_on:
+      - elasticsearch
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.1
+    container_name: kibana_dashboard
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+
+  # ----------------------
+  # 3. MICROSSERVIÇOS JAVA
+  # ----------------------
+  
+  # Discovery Server (Eureka Server)
+  server:
+    build: ./server
+    container_name: eureka_server
+    ports:
+      - "8761:8761"
+    depends_on:
+      - apm-server
+    environment:
+      - SERVER_PORT=8761 
+      - ELASTIC_APM_SERVICE_NAME=eureka-server
+      - ELASTIC_APM_SERVER_URL=http://apm-server:8200
+      - ELASTIC_APM_ENVIRONMENT=development
+
+  # Microsserviço de Pedidos
+  pedidos:
+    build: ./pedidos
+    depends_on:
+      mysql:
+        condition: service_healthy
+      server:
+        condition: service_started
+    environment:
+      - SERVER_PORT=0 
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/linkonfood-pedidos?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=super_senha
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://server:8761/eureka/
+      - ELASTIC_APM_SERVICE_NAME=ms-pedidos
+      - ELASTIC_APM_SERVER_URL=http://apm-server:8200
+      - ELASTIC_APM_ENVIRONMENT=development
+
+  # Microsserviço de Pagamentos
+  pagamentos:
+    build: ./pagamentos
+    depends_on:
+      mysql:
+        condition: service_healthy
+      server:
+        condition: service_started
+    environment:
+      - SERVER_PORT=0
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/linkonfood-pagamentos?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=super_senha
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://server:8761/eureka/
+      - ELASTIC_APM_SERVICE_NAME=ms-pagamentos
+      - ELASTIC_APM_SERVER_URL=http://apm-server:8200
+      - ELASTIC_APM_ENVIRONMENT=development
+
+  # API Gateway
+  gateway:
+    build: ./gateway
+    container_name: api_gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      server:
+        condition: service_started
+    environment:
+      - SERVER_PORT=8080 
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://server:8761/eureka/
+      - ELASTIC_APM_SERVICE_NAME=api-gateway
+      - ELASTIC_APM_SERVER_URL=http://apm-server:8200
+      - ELASTIC_APM_ENVIRONMENT=development
