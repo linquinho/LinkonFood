@@ -21,7 +21,7 @@ services:
   # 2. OBSERVABILIDADE (ELASTIC STACK)
   # ----------------------------------
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1  
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.24  
     container_name: elasticsearch_server
     environment:
       - discovery.type=single-node
@@ -31,7 +31,7 @@ services:
       - "9200:9200"
 
   apm-server:
-    image: docker.elastic.co/apm/apm-server:8.11.1
+    image: docker.elastic.co/apm/apm-server:7.17.24
     container_name: apm_server
     ports:
       - "8200:8200"
@@ -44,7 +44,7 @@ services:
       - elasticsearch
 
   kibana:
-    image: docker.elastic.co/kibana/kibana:8.11.1  
+    image: docker.elastic.co/kibana/kibana:7.17.24  
     container_name: kibana_dashboard
     ports:
       - "5601:5601"
@@ -82,14 +82,13 @@ services:
     environment:
       - SERVER_PORT=8086 
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/linkonfood-pedidos?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false
-      - SERVER_PORT=0
       - EUREKA_SERVER=server
       - DB_HOST=mysql
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://server:8761/eureka/
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://server:8081/eureka/
       - ELASTIC_APM_SERVICE_NAME=ms-pedidos
-      - ELASTIC_APM_SERVER_URL=http://apm-server:8200
+      - JAVA_TOOL_OPTIONS=-Delastic.apm.server_url=http://apm-server:8200 -Delastic.apm.service_name=ms-pedidos -Delastic.apm.environment=development  
       - ELASTIC_APM_ENVIRONMENT=development
 
   # Microsserviço de Pagamentos
@@ -103,14 +102,13 @@ services:
     environment:
       - SERVER_PORT=8085
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/linkonfood-pagamentos?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false
-      - SERVER_PORT=0
       - EUREKA_SERVER=server
       - DB_HOST=mysql
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://server:8761/eureka/
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://server:8081/eureka/
       - ELASTIC_APM_SERVICE_NAME=ms-pagamentos
-      - ELASTIC_APM_SERVER_URL=http://apm-server:8200
+      - JAVA_TOOL_OPTIONS=-Delastic.apm.server_url=http://apm-server:8200 -Delastic.apm.service_name=ms-pagamentos -Delastic.apm.environment=development  
       - ELASTIC_APM_ENVIRONMENT=development
 
   # API Gateway
@@ -123,8 +121,9 @@ services:
       server:
         condition: service_started
     environment:
-      - SERVER_PORT=8080 
+      - SERVER_PORT=8082 
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://server:8081/eureka/
       - ELASTIC_APM_SERVICE_NAME=api-gateway
       - ELASTIC_APM_SERVER_URL=http://apm-server:8200
+      - JAVA_TOOL_OPTIONS=-Delastic.apm.server_url=http://apm-server:8200 -Delastic.apm.service_name=ms-pedidos -Delastic.apm.environment=development  
       - ELASTIC_APM_ENVIRONMENT=development

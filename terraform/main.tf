@@ -85,16 +85,16 @@ resource "aws_security_group" "ec2_sg" {
 
   # API Gateway (Porta de entrada dos microsservicos)
   ingress {
-    from_port   = 8080
-    to_port     = 8080
+    from_port   = 8082
+    to_port     = 8082
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   # Painel do Netflix Eureka Server
   ingress {
-    from_port   = 8761
-    to_port     = 8761
+    from_port   = 8081
+    to_port     = 8081
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
