@@ -1,15 +1,13 @@
-name: "AWS Infrastructure Deployment"
+name: "Deploy LinkonFood"
 
 on:
   push:
     branches:
       - main
-    paths:
-      - 'terraform/**' 
 
 jobs:
-  terraform:
-    name: "Terraform Apply"
+  terraform_and_deploy:
+    name: "Terraform & EC2 Deploy"
     runs-on: ubuntu-latest
 
     steps:
@@ -31,19 +29,59 @@ jobs:
         with:
           terraform_version: 1.7.0
 
-      # 4. Inicializa o Terraform (baixa os plugins da AWS)
+      # 4. Inicializa o Terraform
       - name: Terraform Init
         run: terraform init
         working-directory: ./terraform
 
-      # 5. Valida se a sintaxe do código
+      # 5. Valida a sintaxe do código
       - name: Terraform Validate
         run: terraform validate
         working-directory: ./terraform
 
-      # 6. Cria a infraestrutura na AWS injetando a chave publica
+      # 6. Cria a infraestrutura na AWS injetando as variáveis
       - name: Terraform Apply
+        id: apply
         run: terraform apply -auto-approve
         working-directory: ./terraform
         env:
-          TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }} 
+          TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+          TF_VAR_meu_ip_publico: ${{ secrets.MEU_IP_PUBLICO }}
+          TF_VAR_database_password: ${{ secrets.DATABASE_PASSWORD }} # 
+
+      # 7. Captura o endereço gerado pelo RDS e o IP público da EC2
+      - name: Get Infrastructure Outputs
+        id: infra_info
+        run: |
+          echo "RDS_HOST=$(terraform output -raw rds_endpoint)" >> $GITHUB_ENV
+          echo "EC2_IP=$(terraform output -raw ec2_public_ip)" >> $GITHUB_ENV
+        working-directory: ./terraform
+
+      # 8. Copiar projeto para dentro da EC2
+      - name: Copy Files to EC2 via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.EC2_IP }}
+          username: rocky
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "./*"
+          target: "/home/rocky/app"
+
+      # 9. Conecta na EC2, escreve o arquivo .env dinâmico e liga os containers
+      - name: Deploy Containers on EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.EC2_IP }}
+          username: rocky
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/rocky/app
+            
+            # Escreve o arquivo .env unificando os dois mundos
+            echo "DB_HOST=${{ env.RDS_HOST }}" > .env
+            echo "DB_USERNAME=root" >> .env
+            echo "DB_PASSWORD=${{ secrets.DATABASE_PASSWORD }}" >> .env
+            
+            # Executa o compose na nuvem usando as credenciais do RDS
+            docker compose down
+            docker compose up -d --build

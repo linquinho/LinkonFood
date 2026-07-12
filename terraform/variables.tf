@@ -1,18 +1,27 @@
 variable "instance_type" {
   type        = string
   default     = "t3.medium"
-  description = "Tamanho da instância EC2 para os microsserviços"
+  description = "Tamanho da instancia EC2 para os microsservicos"
 }
 
 variable "db_username" {
   type        = string
   default     = "root"
-  description = "Usuário master do banco de dados RDS"
+  description = "Usuario master do banco de dados RDS"
 }
 
-variable "db_password" {
+variable "database_password" {
   type        = string
-  default     = "super_senha"
   sensitive   = true
-  description = "Senha do banco de dados RDS"
+  description = "Senha do banco de dados RDS MySQL injetada pelo GitHub Secrets"
+}
+
+variable "meu_ip_publico" {
+  type        = string
+  description = "Meu IP publico enviado pelo GitHub"
+}
+
+variable "ssh_public_key" {
+  type        = string
+  description = "Chave publica SSH para permitir que o robô do GitHub faça o deploy"
 }
