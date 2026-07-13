@@ -159,7 +159,7 @@ data "aws_ami" "rocky9" {
   owners      = ["679593333241"] 
   filter {
     name   = "name"
-    values = ["Rocky-9-EC2-Base-*.x86_64"]
+    values = ["Rocky-9-EC2-*.x86_64"]
   }
 
   filter {
