@@ -1,0 +1,54 @@
+name: "Escalar Microsserviços"
+
+on:
+  workflow_dispatch:
+    inputs:
+      quantidade_containers:
+        description: 'Número de réplicas para o ms-pedidos'
+        required: true
+        default: '3'
+
+jobs:
+  scale_infra:
+    name: "Docker Scale"
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Puxa o código para ter acesso à pasta do Terraform
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Conecta na AWS
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      # 3. Prepara o Terraform na máquina do GitHub
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.0
+
+      # 4. Conecta no S3 para ler a memória da sua infraestrutura
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ./terraform
+
+      - name: Get Current EC2 IP
+        run: |
+          echo "EC2_IP=$(terraform output -raw ec2_public_ip)" >> $GITHUB_ENV
+        working-directory: ./terraform
+
+      # 6. Conecta via SSH usando o IP dinâmico capturado no passo anterior
+      - name: Run Scale Command via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.EC2_IP }}
+          username: rocky
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/rocky/app
+            docker compose up -d --scale pedidos=${{ github.event.inputs.quantidade_containers }}
