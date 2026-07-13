@@ -1,23 +1,3 @@
-# ----------------------
-# DEFINIÇÃO DE VARIÁVEIS 
-# ----------------------
-
-variable "meu_ip_publico" {
-  type        = string
-  description = "Somente meu IP poderá acessar os recursos"
-}
-
-variable "database_password" {
-  type        = string
-  description = "Senha master do banco de dados RDS MySQL"
-  sensitive   = true
-}
-
-variable "ssh_public_key" {
-  type        = string
-  description = "Chave publica SSH para acessar o terminal"
-}
-
 # -----------------------------------------------------
 # 1. REDE (VPC, Subnets, Internet Gateway e Roteamento)
 # -----------------------------------------------------

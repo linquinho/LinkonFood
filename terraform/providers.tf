@@ -7,7 +7,7 @@ terraform {
   } 
 
   backend "s3" {
-    bucket = "linkonfood-terraform-state-linkon-s3"
+    bucket = "linkon-s3"
     key    = "state/terraform.tfstate"
     region = "us-east-1"
   }
