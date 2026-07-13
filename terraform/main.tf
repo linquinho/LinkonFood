@@ -161,6 +161,16 @@ data "aws_ami" "rocky9" {
     name   = "name"
     values = ["Rocky-9-EC2-Base-*.x86_64"]
   }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
 }
 
 resource "aws_instance" "app_server" {
