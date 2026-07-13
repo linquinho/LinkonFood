@@ -1,21 +1,22 @@
-name: "Deploy LinkonFood"
+name: "1. AWS Infrastructure (Terraform)"
 
 on:
+  workflow_dispatch: # Permite rodar clicando no botão do GitHub
   push:
     branches:
       - main
+    paths:
+      - 'terraform/**' # SÓ RODA SE HOUVER ALTERAÇÃO NA PASTA TERRAFORM
 
 jobs:
-  terraform_and_deploy:
-    name: "Terraform & EC2 Deploy"
+  terraform:
+    name: "Provision AWS Resources"
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Código do repositório para o servidor do GitHub
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2. Credenciais da AWS para o Terraform
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -23,84 +24,23 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      # 3. Instala o Terraform no servidor do GitHub
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.7.0
 
-      # 4. Inicializa o Terraform
       - name: Terraform Init
         run: terraform init
         working-directory: ./terraform
 
-      # 5. Valida a sintaxe do código
       - name: Terraform Validate
         run: terraform validate
         working-directory: ./terraform
 
-      # 6. Cria a infraestrutura na AWS injetando as variáveis
       - name: Terraform Apply
-        id: apply
         run: terraform apply -auto-approve
         working-directory: ./terraform
         env:
           TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
           TF_VAR_meu_ip_publico: ${{ secrets.MEU_IP_PUBLICO }}
-          TF_VAR_database_password: ${{ secrets.DATABASE_PASSWORD }} # 
-
-      # 7. Captura o endereço gerado pelo RDS e o IP público da EC2
-      - name: Get Infrastructure Outputs
-        id: infra_info
-        run: |
-          echo "RDS_HOST=$(terraform output -raw rds_endpoint)" >> $GITHUB_ENV
-          echo "EC2_IP=$(terraform output -raw ec2_public_ip)" >> $GITHUB_ENV
-        working-directory: ./terraform
-
-      # 7.1: Descobre o IP temporário deste robô do GitHub
-      - name: Get GitHub Actions Runner IP
-        id: get_ip
-        run: echo "ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
-
-      # 7.2: Abre a porta 22 no Security Group apenas para este IP
-      - name: Open SSH port for GitHub Runner
-        run: |
-          SG_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=linkonfood-ec2-sg" --query "SecurityGroups[0].GroupId" --output text)
-          echo "SG_ID=$SG_ID" >> $GITHUB_ENV
-          aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 22 --cidr ${{ steps.get_ip.outputs.ip }}/32
-
-      # 8. Copiar projeto para dentro da EC2
-      - name: Copy Files to EC2 via SCP
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ env.EC2_IP }}
-          username: ubuntu
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "./*"
-          target: "/home/ubuntu/app"
-
-      # 9. Conecta na EC2, escreve o arquivo .env dinâmico e liga os containers
-      - name: Deploy Containers on EC2 via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ env.EC2_IP }}
-          username: ubuntu
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd /home/ubuntu/app
-            
-            # Escreve o arquivo .env unificando os dois mundos
-            echo "DB_HOST=${{ env.RDS_HOST }}" > .env
-            echo "DB_USERNAME=root" >> .env
-            echo "DB_PASSWORD=${{ secrets.DATABASE_PASSWORD }}" >> .env
-            
-            # Executa o compose na nuvem usando as credenciais do RDS
-            docker compose down
-            docker compose up -d --build
-      
-      # 10. Tranca a porta 22 de volta eliminando o IP do GitHub
-      - name: Close SSH port (Clean up)
-        if: always() 
-        run: |
-          aws ec2 revoke-security-group-ingress --group-id ${{ env.SG_ID }} --protocol tcp --port 22 --cidr ${{ steps.get_ip.outputs.ip }}/32
-            
+          TF_VAR_database_password: ${{ secrets.DATABASE_PASSWORD }}
