@@ -171,7 +171,7 @@ data "aws_ami" "rocky9" {
 
 resource "aws_instance" "app_server" {
   ami                    = data.aws_ami.rocky9.id
-  instance_type          = "t2.micro" 
+  instance_type          = "t3.micro" 
   subnet_id              = aws_subnet.subnet_a.id
   vpc_security_group_ids = [aws_security_group.ec2_sg.id]
   key_name               = aws_key_pair.ssh_key.key_name
