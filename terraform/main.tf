@@ -171,14 +171,20 @@ data "aws_ami" "rocky9" {
 
 resource "aws_instance" "app_server" {
   ami                    = data.aws_ami.rocky9.id
-  instance_type          = "t3.medium" 
+  instance_type          = "t2.micro" 
   subnet_id              = aws_subnet.subnet_a.id
   vpc_security_group_ids = [aws_security_group.ec2_sg.id]
   key_name               = aws_key_pair.ssh_key.key_name
 
-  # Script de inicialização automática e instalação do Docker Engine e Compose
+  # Script de inicialização automática, configuração de memória SWAP e instalação do Docker Engine e Compose
   user_data = <<-EOF
               #!/bin/bash
+              sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
+              sudo chmod 600 /swapfile
+              sudo mkswap /swapfile
+              sudo swapon /swapfile
+              echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
               sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
               sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
               sudo systemctl enable --now docker
