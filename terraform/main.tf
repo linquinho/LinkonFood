@@ -156,20 +156,16 @@ resource "aws_key_pair" "ssh_key" {
 
 data "aws_ami" "rocky9" {
   most_recent = true
-  owners      = ["679593333241"] 
+  owners      = ["679593333241", "aws-marketplace"]
+
   filter {
-    name   = "name"
-    values = ["Rocky-9-*"]
+    name   = "product-code"
+    values = ["c0tjzp9xnxvr0ah4f0yletr6b"]
   }
 
   filter {
     name   = "architecture"
     values = ["x86_64"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
   }
 }
 
