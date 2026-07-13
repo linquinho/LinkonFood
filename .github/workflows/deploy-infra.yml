@@ -57,25 +57,37 @@ jobs:
           echo "EC2_IP=$(terraform output -raw ec2_public_ip)" >> $GITHUB_ENV
         working-directory: ./terraform
 
+      # 7.1: Descobre o IP temporário deste robô do GitHub
+      - name: Get GitHub Actions Runner IP
+        id: get_ip
+        run: echo "ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
+
+      # 7.2: Abre a porta 22 no Security Group apenas para este IP
+      - name: Open SSH port for GitHub Runner
+        run: |
+          SG_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=linkonfood-ec2-sg" --query "SecurityGroups[0].GroupId" --output text)
+          echo "SG_ID=$SG_ID" >> $GITHUB_ENV
+          aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 22 --cidr ${{ steps.get_ip.outputs.ip }}/32
+
       # 8. Copiar projeto para dentro da EC2
       - name: Copy Files to EC2 via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ env.EC2_IP }}
-          username: rocky
+          username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "./*"
-          target: "/home/rocky/app"
+          target: "/home/ubuntu/app"
 
       # 9. Conecta na EC2, escreve o arquivo .env dinâmico e liga os containers
       - name: Deploy Containers on EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ env.EC2_IP }}
-          username: rocky
+          username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /home/rocky/app
+            cd /home/ubuntu/app
             
             # Escreve o arquivo .env unificando os dois mundos
             echo "DB_HOST=${{ env.RDS_HOST }}" > .env
@@ -85,3 +97,10 @@ jobs:
             # Executa o compose na nuvem usando as credenciais do RDS
             docker compose down
             docker compose up -d --build
+      
+      # 10. Tranca a porta 22 de volta eliminando o IP do GitHub
+      - name: Close SSH port (Clean up)
+        if: always() 
+        run: |
+          aws ec2 revoke-security-group-ingress --group-id ${{ env.SG_ID }} --protocol tcp --port 22 --cidr ${{ steps.get_ip.outputs.ip }}/32
+            
