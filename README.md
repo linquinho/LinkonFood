@@ -32,7 +32,7 @@ Toda a infraestrutura física foi modelada declarativamente, garantindo um ambie
   * A aplicação roda em um servidor Linux isolado por um firewall que restringe o tráfego externo apenas para canais autorizados.
   * O banco de dados vive em uma sub-rede privada, sem endereço de internet, configurado para aceitar tráfego exclusivamente do servidor da aplicação.
  
-<img width="236" height="363" alt="image" src="https://github.com/user-attachments/assets/386f1fc6-583d-42a6-bd3b-882c4c8c4a41" />
+<img width="355" height="323" alt="image" src="https://github.com/user-attachments/assets/c9899232-1771-442b-addb-2a8fc12e4420" />
 
 
 ---
