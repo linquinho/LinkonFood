@@ -151,16 +151,16 @@ resource "aws_key_pair" "ssh_key" {
 }
 
 #----------------------------------------------------------
-# 3. MÁQUINAS E COMPONENTES (EC2 Rocky Linux 9 & RDS MySQL)
+# 3. MÁQUINAS E COMPONENTES (EC2 Ubuntu Linux 9 & RDS MySQL)
 #----------------------------------------------------------
 
-data "aws_ami" "rocky9" {
+data "aws_ami" "ubuntu" {
   most_recent = true
-  owners      = ["679593333241", "aws-marketplace"]
+  owners      = ["099720109477"]
 
   filter {
-    name   = "product-code"
-    values = ["c0tjzp9xnxvr0ah4f0yletr6b"]
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-noble-24.04-amd64-server-*"]
   }
 
   filter {
@@ -170,7 +170,7 @@ data "aws_ami" "rocky9" {
 }
 
 resource "aws_instance" "app_server" {
-  ami                    = data.aws_ami.rocky9.id
+  ami                    = data.aws_ami.ubuntu.id
   instance_type          = "t3.micro" 
   subnet_id              = aws_subnet.subnet_a.id
   vpc_security_group_ids = [aws_security_group.ec2_sg.id]
@@ -185,10 +185,10 @@ resource "aws_instance" "app_server" {
               sudo swapon /swapfile
               echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 
-              sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-              sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+              sudo apt-get update
+              sudo apt-get install -y docker.io docker-compose-v2
               sudo systemctl enable --now docker
-              sudo usermod -aG docker rocky
+              sudo usermod -aG docker ubuntu
               EOF
 
   tags = {
