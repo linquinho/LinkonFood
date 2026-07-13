@@ -1,24 +1,8 @@
 version: '3.8'
 
 services:
-  # -------------------------
-  # 1. BANCO DE DADOS (MySQL)
-  # -------------------------
-  mysql:
-    image: mysql:8.0
-    container_name: linkonfood_mysql
-    environment:
-      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
-    ports:
-      - "3306:3306"
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   # ----------------------------------
-  # 2. OBSERVABILIDADE (ELASTIC STACK)
+  # 1. OBSERVABILIDADE (ELASTIC STACK)
   # ----------------------------------
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.17.24  
@@ -26,7 +10,7 @@ services:
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m" 
     ports:
       - "9200:9200"
 
@@ -54,7 +38,7 @@ services:
       - elasticsearch
 
   # ----------------------
-  # 3. MICROSSERVIÇOS JAVA
+  # 2. MICROSSERVIÇOS JAVA
   # ----------------------
   
   # Discovery Server (Eureka Server)
@@ -74,9 +58,7 @@ services:
   # Microsserviço de Pedidos
   pedidos:
     build: ./pedidos
-    depends_on:
-      mysql:
-        condition: service_healthy
+    depends_on: 
       server:
         condition: service_started
     environment:
@@ -94,9 +76,7 @@ services:
   # Microsserviço de Pagamentos
   pagamentos:
     build: ./pagamentos
-    depends_on:
-      mysql:
-        condition: service_healthy
+    depends_on: 
       server:
         condition: service_started
     environment:
