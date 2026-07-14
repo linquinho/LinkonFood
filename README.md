@@ -44,3 +44,34 @@ Após a execução automatizada, a integridade e o comportamento do ecossistema 
 * **Painel de Registro de Serviços:** Exibe em tempo real o status de saúde e a localização de cada microsserviço ativo no ecossistema.
 * **Roteamento unificado:** Centraliza os pontos de consumo público das rotas de negócio de forma uniforme.
 * **Métricas de Performance e APM:** Rastreia o tempo de execução de transações ponta a ponta, permitindo identificar gargalos de código ou lentidão em queries de banco de dados.
+
+---
+
+## 🚀 Fluxo de CI/CD e Automação (GitOps)
+
+Este projeto utiliza pipelines inteligentes no **GitHub Actions** orientados a caminhos (*path-based triggers*). Isso garante que apenas as partes modificadas do projeto sejam processadas, otimizando o tempo de deploy e a segurança do ambiente.
+
+O fluxo de automação funciona da seguinte forma:
+
+---
+
+### 🌐 1. Deploy Automatizado de Infraestrutura (Terraform)
+* **Como funciona:** Sempre que um `push` é realizado na branch `main` contendo alterações **exclusivas dentro da pasta `terraform/`**, o GitHub Actions dispara automaticamente o pipeline de infraestrutura.
+* **Ações executadas:** O Terraform analisa o estado atual (armazenado no S3), planeja e aplica as alterações diretamente na AWS (atualizando VPC, EC2, RDS, etc.). 
+* **Benefício:** É alterado apenas o código da aplicação, a infraestrutura da AWS não será tocada, evitando riscos de queda ou recriação acidental do servidor.
+
+---
+
+### 📦 2. Deploy Automatizado da Aplicação (Docker)
+* **Como funciona:** Sempre que um `push` é realizado na branch `main` contendo alterações **dentro das pastas dos microsserviços ou gateway** (ex: `ms-pedidos/`, `ms-pagamentos/`, `api-gateway/`), o GitHub Actions dispara apenas o pipeline de deploy da aplicação.
+* **Ações executadas:** A esteira se conecta à EC2 via SSH, envia os novos arquivos via SCP e recria apenas as imagens Docker que sofreram alterações através do comando:
+  ```bash
+  docker compose up -d --build
+
+---
+
+### 💥 3. Destroy Automatizado da Aplicação (Terraform)
+* **Como funciona:** Para evitar custos desnecessários após testes, não é necessário rodar nada no terminal local. Existe um workflow de disparo manual (workflow_dispatch) configurado diretamente no painel do GitHub Actions chamado AWS Destroy.
+* **Ações executadas:** O próprio GitHub Actions inicializa um runner, conecta-se ao backend remoto no S3 e executa de forma totalmente automatizada o comando terraform destroy -auto-approve, eliminando 100% dos recursos ativos na AWS em poucos minutos de forma limpa e segura.
+
+  
